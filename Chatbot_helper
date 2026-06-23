@@ -6,7 +6,7 @@ from langchain.chains import LLMChain
 
 load_dotenv()  # Load your GOOGLE_API_KEY from .env
 
-def generate_response(skin_type, color):
+def generate_response(environment, threat_type):
     llm = GoogleGenerativeAI(
         model="gemini-1.5-flash",
         google_api_key=os.getenv("GOOGLE_API_KEY"),
@@ -14,10 +14,10 @@ def generate_response(skin_type, color):
     )
 
     prompt_template = PromptTemplate(
-        input_variables=["skin_type", "color"],
-        template="Suggest 5 makeup steps and types of makeup products suitable for a {skin_type} skin type and {color} color girl."
+        input_variables=["environment", "threat_type"],
+        template="Suggest 5 immediate security response steps and recommended surveillance measures suitable for a {environment} environment when a {threat_type} is detected."
     )
 
     chain = LLMChain(llm=llm, prompt=prompt_template)
-    response = chain.run({'skin_type': skin_type, 'color': color})
+    response = chain.run({'environment': environment, 'threat_type': threat_type})
     return response
