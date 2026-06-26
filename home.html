@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safegaze_AI – Weapon & Gaze Detection</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        /* ----- Base styles (same as before) ----- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 { color: #38bdf8; margin-bottom: 10px; }
+        #status {
+            font-size: 0.9rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+        .connected { background: #22c55e; color: white; }
+        .disconnected { background: #ef4444; color: white; }
+
+        #main-container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            flex-wrap: wrap;
+        }
+        #video-container {
+            flex: 2;
+            min-width: 300px;
+            background: #1e293b;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #video-feed {
+            width: 100%;
+            display: block;
+        }
+        #alerts {
+            flex: 1;
+            min-width: 250px;
+        }
+        .alert-card {
+            background: #1e293b;
+            border-left: 5px solid #38bdf8;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease;
+        }
+        .alert-card.weapon { border-left-color: #ef4444; }
+        .alert-card.gaze { border-left-color: #facc15; }
+        .alert-text { font-size: 1.1rem; }
+        .alert-time { font-size: 0.8rem; color: #94a3b8; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .placeholder { color: #64748b; text-align: center; margin-top: 40px; }
+
+        /* ----- Chatbot icon (fixed) ----- */
+        .chatbot-icon {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #38bdf8;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+            z-index: 1000;
+            border: none;
+        }
+        .chatbot-icon:hover { transform: scale(1.1); background: #0284c7; }
+
+        /* ----- Chat popup (hidden by default) ----- */
+        .chat-popup {
+            display: none;
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 350px;
+            height: 500px;
+            background: #1e293b;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            z-index: 999;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #334155;
+        }
+        .chat-popup.active { display: flex; }
+
+        .chat-header {
+            background: #38bdf8;
+            padding: 12px 16px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .chat-body {
+            flex: 1;
+        }
+        .chat-body iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Responsive: smaller popup on narrow screens */
+        @media (max-width: 600px) {
+            .chat-popup {
+                width: 90vw;
+                right: 5vw;
+                bottom: 100px;
+                height: 60vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Safegaze_AI</h1>
+    <div id="status" class="disconnected">Disconnected</div>
+
+    <div id="main-container">
+        <!-- Live Camera Feed -->
+        <div id="video-container">
+            <img id="video-feed" src="/video_feed" alt="Camera Feed">
+        </div>
+
+        <!-- Alerts -->
+        <div id="alerts">
+            <p class="placeholder">Waiting for detection updates...</p>
+        </div>
+    </div>
+
+    <!-- Chatbot Icon -->
+    <button id="chatToggleBtn" class="chatbot-icon" title="Chat with AI">💬</button>
+
+    <!-- Chat Popup -->
+    <div id="chatPopup" class="chat-popup">
+        <div class="chat-header">
+            <span>🤖 Safegaze Assistant</span>
+            <button id="closeChatBtn" class="close-btn">&times;</button>
+        </div>
+        <div class="chat-body">
+            <!-- Load your /chatbot page here. Replace with a real chatbot later -->
+            <iframe src="/chatbot"></iframe>
+        </div>
+    </div>
+
+    <script>
+        // Socket.IO connection
+        const socket = io("http://127.0.0.1:5000");
+        const statusDiv = document.getElementById('status');
+        const alertsContainer = document.getElementById('alerts');
+        const placeholder = document.querySelector('.placeholder');
+
+        socket.on('connect', () => {
+            statusDiv.textContent = 'Connected';
+            statusDiv.className = 'connected';
+        });
+        socket.on('disconnect', () => {
+            statusDiv.textContent = 'Disconnected';
+            statusDiv.className = 'disconnected';
+        });
+        socket.on('detection_update', (data) => {
+            if (placeholder) placeholder.remove();
+            const card = document.createElement('div');
+            card.className = 'alert-card';
+            if (data.type === 'weapon') card.classList.add('weapon');
+            else if (data.type === 'gaze') card.classList.add('gaze');
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            card.innerHTML = `
+                <span class="alert-text">${data.message || 'Detection alert'}</span>
+                <span class="alert-time">${timeStr}</span>
+            `;
+            alertsContainer.prepend(card);
+            const cards = alertsContainer.querySelectorAll('.alert-card');
+            if (cards.length > 5) cards[cards.length - 1].remove();
+        });
+
+        // ----- Chat popup toggle -----
+        const chatPopup = document.getElementById('chatPopup');
+        const chatToggleBtn = document.getElementById('chatToggleBtn');
+        const closeChatBtn = document.getElementById('closeChatBtn');
+
+        chatToggleBtn.addEventListener('click', () => {
+            chatPopup.classList.toggle('active');
+        });
+
+        closeChatBtn.addEventListener('click', () => {
+            chatPopup.classList.remove('active');
+        });
+    </script>
+</body>
+</html>
