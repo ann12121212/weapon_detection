@@ -270,17 +270,6 @@ allowing real-time performance evaluation during deployment.
 
 ---
 
-# 📸 Demo
-
-Add screenshots or GIFs of:
-
-* Live weapon detection
-* Gaze estimation
-* Dashboard interface
-* AI-generated protocol
-* Real-time alerts
-
----
 
 # 🤝 Contributing
 
