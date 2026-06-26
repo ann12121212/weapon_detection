@@ -31,7 +31,6 @@ The system simultaneously performs:
   * Gun
   * Pistol
   * Rifle
-  * Scissors
 * Real-time inference
 * Confidence-based detection
 * Optimized for webcam/CCTV feeds
@@ -156,7 +155,7 @@ weapon_detection/
 ├── home.html
 ├── chatbot.html
 ├── home.css
-├── final-weapon-det-pro.ipynb
+├── final-weapon-det-pro.ipynb #it is ued in best.pt
 ├── README.md
 └── requirements.txt
 ```
